@@ -10,32 +10,31 @@ export class SubnetTreeNode {
     }
 
     public createChild(value: number): SubnetTreeNode {
-        // size = -1 means unsized
-        const child = new SubnetTreeNode(value, -1, this);
+        const child = new SubnetTreeNode(value, -1, this); // size = -1 means unsized
         this.children[value] = child;
-        return child
+        return child;
     }
 
     public isPopulated(): boolean {
-        return this.ids !== undefined || Object.keys(this.children).length > 0
+        return this.ids !== undefined || Object.keys(this.children).length > 0;
     }
 
-    public split(newSize: number) {
-        if (newSize == this.size) return;
+    public split(newSize: number): void {
+        if (newSize === this.size) return;
 
         const newChildren: typeof this.children = {};
         const newChildSize = this.size - newSize;
-        Object.values(this.children).map((child) => {
+        Object.values(this.children).forEach((child) => {
             if (child === undefined || child.value === null) throw new Error('invalid child');
             // Split value to new child
-            const newValue = child.value >> newChildSize
+            const newValue = child.value >> newChildSize;
             const newChildValue = child.value % (1 << newChildSize);
 
             let newChild = newChildren[newValue];
             if (newChild === undefined) {
                 newChild = new SubnetTreeNode(newValue, newChildSize, this);
                 if (this.ids !== undefined) {
-                    newChild.ids = this.ids.slice()
+                    newChild.ids = this.ids.slice();
                 }
                 newChildren[newValue] = newChild;
             }
@@ -46,8 +45,8 @@ export class SubnetTreeNode {
             child.parent = newChild;
 
             // Child becomes grandchild
-            newChild.children[newChildValue] = child
-        })
+            newChild.children[newChildValue] = child;
+        });
 
         // Update params
         this.size = newSize;
@@ -60,7 +59,7 @@ export class SubnetTreeNode {
 
         if (this.isPopulated()) return; // cannot prune populated node
 
-        delete this.parent.children[this.value];
+        delete this.parent.children[this.value]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
 
         this.parent.prune();
     }
@@ -72,7 +71,7 @@ export class SubnetTreeNode {
 
     public removeId(id: string): void {
         if (this.ids === undefined) return;
-        this.ids = this.ids.filter((nid) => nid != id);
+        this.ids = this.ids.filter((nid) => nid !== id);
         if (this.ids.length === 0) delete this.ids;
     }
 }
@@ -86,17 +85,17 @@ export class SubnetTree {
         return Number(address >> BigInt(SubnetTree.ADDRESS_SIZE - start - size)) % Math.pow(2, size);
     }
 
-    *iterate(
+    * iterate(
         address: string,
         end: number = SubnetTree.ADDRESS_SIZE,
-        store: boolean = false,
-    ) {
+        store: boolean = false
+    ): Generator<SubnetTreeNode, void> {
         let node = this.root;
         let cursor = 0; // Starting from MSB and moving right
         const addressLong = BigInt(ip.toLong(address));
 
         while (cursor < end) {
-            if (node.size == -1) { // no children in this node
+            if (node.size === -1) { // no children in this node
                 if (!store) throw new Error('Cannot find node');
                 node.size = end - cursor;
             } else if (cursor + node.size > end) { // node too big
@@ -105,13 +104,13 @@ export class SubnetTree {
             }
 
             // Slice off node.size bits from cursor onwards
-            let value = this.slice(addressLong, cursor, node.size);
+            const value = this.slice(addressLong, cursor, node.size);
             cursor += node.size;
 
             let nextNode = node.children[value];
             if (nextNode === undefined) { // node does not contain this child
                 if (!store) throw new Error('Cannot find node');
-                nextNode = node.createChild(value)
+                nextNode = node.createChild(value);
             }
 
             yield nextNode;
@@ -120,16 +119,16 @@ export class SubnetTree {
         }
     }
 
-    public addSubnet(subnet: ip.SubnetInfo, id: string) {
+    public addSubnet(subnet: ip.SubnetInfo, id: string): void {
         const nodes = Array.from(this.iterate(subnet.networkAddress, subnet.subnetMaskLength, true));
         nodes[nodes.length - 1].addId(id);
     }
 
-    public removeSubnet(subnet: ip.SubnetInfo, id: string) {
+    public removeSubnet(subnet: ip.SubnetInfo, id: string): void {
         try {
             // If subnet is in tree we should have an exact node for this subnet
             const nodes = Array.from(this.iterate(subnet.networkAddress, subnet.subnetMaskLength));
-            nodes[nodes.length - 1].removeId(id)
+            nodes[nodes.length - 1].removeId(id);
             nodes[nodes.length - 1].prune();
         } catch { } // Couldn't find exact node -- nothing to remove.
     }
@@ -141,9 +140,7 @@ export class SubnetTree {
             for (const node of this.iterate(address)) {
                 if (node.ids !== undefined) ids.push(...node.ids);
             }
-        }
-        catch { } // Couldn't find exact node -- return any ids we did encounter.
+        } catch { } // Couldn't find exact node -- return any ids we did encounter.
         return ids;
     }
-
 }

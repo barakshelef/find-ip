@@ -1,4 +1,4 @@
-import { Address4 } from "ip-address";
+import * as ip from 'ip';
 import { SubnetTree } from "."
 
 describe('SubnetTree', () => {
@@ -18,9 +18,9 @@ describe('SubnetTree', () => {
         ["249.222.125.102", "249.222.125.102/32"],
     ])('match %s in %s', (address: string, subnet: string) => {
         const tree = new SubnetTree();
-        tree.addSubnet(new Address4(subnet), "foo");
+        tree.addSubnet(ip.cidrSubnet(subnet), "foo");
 
-        expect(tree.match(new Address4(address))).toEqual(["foo"])
+        expect(tree.match(address)).toEqual(["foo"])
     })
 
     test.each([
@@ -35,17 +35,17 @@ describe('SubnetTree', () => {
         ["249.222.125.103", "249.222.125.102/32"],
     ])('no match %s in %s', (address: string, subnet: string) => {
         const tree = new SubnetTree();
-        tree.addSubnet(new Address4(subnet), "foo");
+        tree.addSubnet(ip.cidrSubnet(subnet), "foo");
 
-        expect(tree.match(new Address4(address))).toHaveLength(0)
+        expect(tree.match(address)).toHaveLength(0)
     })
 
     test('match multiple', () => {
         const tree = new SubnetTree();
-        tree.addSubnet(new Address4("192.168.0.0/16"), "foo");
-        tree.addSubnet(new Address4("192.168.1.0/24"), "bar");
+        tree.addSubnet(ip.cidrSubnet("192.168.0.0/16"), "foo");
+        tree.addSubnet(ip.cidrSubnet("192.168.1.0/24"), "bar");
 
-        const ids = tree.match(new Address4("192.168.1.1"));
+        const ids = tree.match("192.168.1.1");
 
         expect(ids).toHaveLength(2);
         expect(ids).toEqual(expect.arrayContaining(["foo", "bar"]))
@@ -53,20 +53,20 @@ describe('SubnetTree', () => {
 
     test('match one of multiple', () => {
         const tree = new SubnetTree();
-        tree.addSubnet(new Address4("192.168.0.0/16"), "foo");
-        tree.addSubnet(new Address4("192.168.1.0/24"), "bar");
+        tree.addSubnet(ip.cidrSubnet("192.168.0.0/16"), "foo");
+        tree.addSubnet(ip.cidrSubnet("192.168.1.0/24"), "bar");
 
-        const ids = tree.match(new Address4("192.168.2.1"));
+        const ids = tree.match("192.168.2.1");
 
         expect(ids).toEqual(["foo"])
     })
 
     test('match duplicate subnet', () => {
         const tree = new SubnetTree();
-        tree.addSubnet(new Address4("192.168.0.0/16"), "foo");
-        tree.addSubnet(new Address4("192.168.0.0/16"), "bar");
+        tree.addSubnet(ip.cidrSubnet("192.168.0.0/16"), "foo");
+        tree.addSubnet(ip.cidrSubnet("192.168.0.0/16"), "bar");
 
-        const ids = tree.match(new Address4("192.168.1.1"));
+        const ids = tree.match("192.168.1.1");
 
         expect(ids).toHaveLength(2);
         expect(ids).toEqual(expect.arrayContaining(["foo", "bar"]))
@@ -74,10 +74,10 @@ describe('SubnetTree', () => {
 
     test('match duplicate subnet', () => {
         const tree = new SubnetTree();
-        tree.addSubnet(new Address4("192.168.0.0/16"), "foo");
-        tree.addSubnet(new Address4("192.168.0.0/16"), "foo");
+        tree.addSubnet(ip.cidrSubnet("192.168.0.0/16"), "foo");
+        tree.addSubnet(ip.cidrSubnet("192.168.0.0/16"), "foo");
 
-        const ids = tree.match(new Address4("192.168.1.1"));
+        const ids = tree.match("192.168.1.1");
 
         expect(ids).toHaveLength(2);
         expect(ids).toEqual(expect.arrayContaining(["foo", "foo"]))
@@ -85,11 +85,11 @@ describe('SubnetTree', () => {
 
     test('remove subnet', () => {
         const tree = new SubnetTree();
-        tree.addSubnet(new Address4("192.168.0.0/16"), "foo");
-        tree.removeSubnet(new Address4("192.168.0.0/16"), "foo");
+        tree.addSubnet(ip.cidrSubnet("192.168.0.0/16"), "foo");
+        tree.removeSubnet(ip.cidrSubnet("192.168.0.0/16"), "foo");
 
 
-        const ids = tree.match(new Address4("192.168.1.1"));
+        const ids = tree.match("192.168.1.1");
 
         expect(ids).toHaveLength(0);
     })
@@ -97,21 +97,21 @@ describe('SubnetTree', () => {
     test('remove non-existent subnet', () => {
         const tree = new SubnetTree();
 
-        tree.removeSubnet(new Address4("192.168.0.0/16"), "foo");
+        tree.removeSubnet(ip.cidrSubnet("192.168.0.0/16"), "foo");
 
-        const ids = tree.match(new Address4("192.168.1.1"));
+        const ids = tree.match("192.168.1.1");
 
         expect(ids).toHaveLength(0);
     })
 
     test('remove single id', () => {
         const tree = new SubnetTree();
-        tree.addSubnet(new Address4("192.168.0.0/16"), "foo");
-        tree.addSubnet(new Address4("192.168.0.0/16"), "bar");
-        tree.removeSubnet(new Address4("192.168.0.0/16"), "foo");
+        tree.addSubnet(ip.cidrSubnet("192.168.0.0/16"), "foo");
+        tree.addSubnet(ip.cidrSubnet("192.168.0.0/16"), "bar");
+        tree.removeSubnet(ip.cidrSubnet("192.168.0.0/16"), "foo");
 
 
-        const ids = tree.match(new Address4("192.168.1.1"));
+        const ids = tree.match("192.168.1.1");
 
         expect(ids).toHaveLength(1);
         expect(ids).toEqual(expect.arrayContaining(["bar"]))
@@ -119,12 +119,12 @@ describe('SubnetTree', () => {
 
     test('remove parent id', () => {
         const tree = new SubnetTree();
-        tree.addSubnet(new Address4("192.168.0.0/16"), "foo");
-        tree.addSubnet(new Address4("192.168.0.0/24"), "bar");
-        tree.removeSubnet(new Address4("192.168.0.0/16"), "foo");
+        tree.addSubnet(ip.cidrSubnet("192.168.0.0/16"), "foo");
+        tree.addSubnet(ip.cidrSubnet("192.168.0.0/24"), "bar");
+        tree.removeSubnet(ip.cidrSubnet("192.168.0.0/16"), "foo");
 
 
-        const ids = tree.match(new Address4("192.168.0.1"));
+        const ids = tree.match("192.168.0.1");
 
         expect(ids).toHaveLength(1);
         expect(ids).toEqual(expect.arrayContaining(["bar"]))
@@ -132,29 +132,27 @@ describe('SubnetTree', () => {
 
     test('prune', () => {
         const tree = new SubnetTree();
-        tree.addSubnet(new Address4("1.0.0.0/8"), "foo");
-        tree.addSubnet(new Address4("1.1.0.0/16"), "bar");
-        tree.addSubnet(new Address4("1.1.1.0/24"), "baz");
-        tree.addSubnet(new Address4("1.1.1.1/32"), "gaz");
-        tree.removeSubnet(new Address4("1.0.0.0/8"), "foo");
-        tree.removeSubnet(new Address4("1.1.0.0/16"), "bar");
-        tree.removeSubnet(new Address4("1.1.1.0/24"), "baz");
-        tree.removeSubnet(new Address4("1.1.1.1/32"), "gaz");
+        tree.addSubnet(ip.cidrSubnet("1.0.0.0/8"), "foo");
+        tree.addSubnet(ip.cidrSubnet("1.1.0.0/16"), "bar");
+        tree.addSubnet(ip.cidrSubnet("1.1.1.0/24"), "baz");
+        tree.addSubnet(ip.cidrSubnet("1.1.1.1/32"), "gaz");
+        tree.removeSubnet(ip.cidrSubnet("1.0.0.0/8"), "foo");
+        tree.removeSubnet(ip.cidrSubnet("1.1.0.0/16"), "bar");
+        tree.removeSubnet(ip.cidrSubnet("1.1.1.0/24"), "baz");
+        tree.removeSubnet(ip.cidrSubnet("1.1.1.1/32"), "gaz");
 
-        expect(tree.root[0]).toBeUndefined()
-        expect(tree.root[1]).toBeUndefined()
+        expect(tree.root.children).toEqual({})
         expect(tree.root.ids).toBeUndefined()
     })
 })
 
-const _randomIp = (): Address4 => {
-    return Address4.fromInteger(Math.floor(Math.random() * Math.pow(2, 32)) + 1);
+const _randomIp = (): string => {
+    return ip.fromLong(Math.floor(Math.random() * Math.pow(2, 32)) + 1);
 }
 
-const _randomSubnet = (): Address4 => {
-    const ip = _randomIp();
-    ip.subnetMask = Math.floor(Math.random() * 17) + 16;
-    return ip;
+const _randomSubnet = (): ip.SubnetInfo => {
+    const cidr = Math.floor(Math.random() * 32) + 1
+    return ip.cidrSubnet(`${_randomIp()}/${cidr}`);
 }
 
 describe('Performance', () => {

@@ -1,6 +1,6 @@
 import * as ip from 'ip';
 
-export class SubnetTreeNode {
+class SubnetTreeNode {
     public children: Record<number, SubnetTreeNode | undefined> = {};
     public ids?: string[];
     private constructor(public value: number | null, public size: number, public parent: SubnetTreeNode | null) { }
